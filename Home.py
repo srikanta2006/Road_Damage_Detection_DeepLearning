@@ -41,7 +41,7 @@ h1, h2, h3 {
 """, unsafe_allow_html=True)
 
 st.markdown("<h1 style='text-align:center;'>🚧 Road Damage Detection System</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align:center; color:gray;'>AI-powered analysis using UAV imagery and YOLOv8</p>", unsafe_allow_html=True)
+
 
 st.markdown("---")
 
