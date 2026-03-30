@@ -1,154 +1,151 @@
 import streamlit as st
 import pandas as pd
-from fpdf import FPDF
 import os
 from datetime import datetime
+from fpdf import FPDF
+from utils.alerts import render_sidebar_alerts
 
-st.set_page_config(page_title="AI Report Generator", layout="centered")
+st.set_page_config(page_title="Strategic Audit Report", page_icon="📄", layout="wide")
 
-st.title("📄 AI Damage Analysis Report")
+render_sidebar_alerts()
 
-# Load data
-try:
-    df = pd.read_csv("gps_log.csv")
-except:
-    st.warning("No geospatial data found. Please run a detection first!")
-    st.stop()
-
-if df.empty:
-    st.warning("Spatial database is empty.")
-    st.stop()
-
+# PREMIUM THEME
 st.markdown("""
-### 📋 Strategic Intelligence Report
-Generate a comprehensive technical audit including severity distribution, classification metrics, and automated maintenance recommendations.
-""")
+<style>
+.main { background: #0E1117; color: white; }
+.report-card {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 30px;
+    border-radius: 12px;
+}
+</style>
+""", unsafe_allow_html=True)
 
-# -----------------------
-# 🔹 GENERATE REPORT
-# -----------------------
-if st.button("🚀 Compile & Generate Detailed Report", use_container_width=True):
+st.title("📄 Strategic Infrastructure Audit")
 
-    # Process Stats
-    total_hazards = len(df)
-    severity_counts = df['severity'].value_counts()
-    type_counts = df['damage_type'].value_counts()
-    high_risk_count = severity_counts.get('high', 0)
-    
-    # Recommendation Logic
-    if high_risk_count > 5:
-        status = "CRITICAL"
-        rec = "Immediate emergency response required at logged coordinates. High density of critical risk hazards detected."
-    elif high_risk_count > 0 or total_hazards > 15:
-        status = "CAUTION"
-        rec = "Scheduled maintenance suggested within 15 days. Monitor high-severity zones closely."
-    else:
-        status = "STABLE"
-        rec = "Routine maintenance cycle. No immediate critical failures detected."
+# Load Data
+if os.path.exists("gps_log.csv"):
+    df = pd.read_csv("gps_log.csv")
+else:
+    st.warning("Database unavailable.")
+    st.stop()
 
-    pdf = FPDF()
+# --- CALCULATE STATISTICS ---
+total = len(df)
+active = df[df['status'] != 'Resolved'].copy()
+resolved = len(df[df['status'] == 'Resolved'])
+pending = len(active)
+
+h = len(active[active['severity'] == 'high'])
+m = len(active[active['severity'] == 'medium'])
+l = len(active[active['severity'] == 'low'])
+
+rhi = 100 - ( (h*20) + (m*8) + (l*2) ) / (total if total > 0 else 1) * 2
+rhi = max(0, min(100, rhi))
+grade = "A" if rhi > 85 else "B" if rhi > 70 else "C" if rhi > 55 else "D" if rhi > 40 else "F"
+
+# --- PDF GENERATOR CLASS ---
+class SRIMS_PDF(FPDF):
+    def header(self):
+        self.set_font('Arial', 'B', 15)
+        self.cell(0, 10, 'SRIMS | OFFICIAL INFRASTRUCTURE AUDIT', 0, 1, 'C')
+        self.set_font('Arial', '', 10)
+        self.cell(0, 10, f'Generated on: {datetime.now().strftime("%Y-%m-%d %H:%M")}', 0, 1, 'C')
+        self.ln(10)
+
+    def footer(self):
+        self.set_y(-15)
+        self.set_font('Arial', 'I', 8)
+        self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
+
+def create_pdf():
+    pdf = SRIMS_PDF()
     pdf.add_page()
-
-    # --- Header Banner ---
-    pdf.set_fill_color(26, 28, 44)
-    pdf.rect(0, 0, 210, 45, 'F')
-    
-    pdf.set_font("Arial", "B", 22)
-    pdf.set_text_color(255, 255, 255)
-    pdf.cell(200, 25, "SRIMS Technical Damage Audit", ln=True, align='C')
-    
-    pdf.set_font("Arial", "I", 10)
-    pdf.cell(200, 5, f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", ln=True, align='C')
-
-    pdf.set_text_color(0, 0, 0)
-    pdf.ln(25)
-
-    # --- 1. Executive Intelligence Summary ---
-    pdf.set_font("Arial", "B", 14)
-    pdf.set_fill_color(240, 240, 240)
-    pdf.cell(200, 10, " 1. EXECUTIVE SUMMARY", ln=True, fill=True)
-    pdf.ln(5)
     pdf.set_font("Arial", size=12)
 
-    pdf.cell(100, 10, f"Total Hazards Logged: {total_hazards}")
-    pdf.cell(100, 10, f"Infrastructure Status: {status}", ln=True)
-    pdf.cell(100, 10, f"Primary Damage: {df['damage_type'].mode()[0]}")
-    pdf.cell(100, 10, f"Avg Confidence: {round(df['confidence'].mean(), 2)}", ln=True)
-
-    pdf.ln(10)
-
-    # --- 2. Distribution Data ---
-    pdf.set_font("Arial", "B", 14)
-    pdf.cell(200, 10, " 2. STATISTICAL DISTRIBUTION", ln=True, fill=True)
-    pdf.ln(5)
-    
-    col_width = 95
-    pdf.set_font("Arial", "B", 11)
-    pdf.cell(col_width, 10, "Classification Breakdown", 0)
-    pdf.cell(col_width, 10, "Severity Breakdown", 1)
-    
-    pdf.set_font("Arial", size=10)
-    # Combine lists to iterate through counts
-    max_rows = max(len(type_counts), len(severity_counts))
-    type_idx = type_counts.index.tolist()
-    sev_idx = severity_counts.index.tolist()
-    
-    for i in range(max_rows):
-        t_text = f"{type_idx[i]}: {type_counts[type_idx[i]]}" if i < len(type_idx) else ""
-        s_text = f"{sev_idx[i]}: {severity_counts[sev_idx[i]]}" if i < len(sev_idx) else ""
-        pdf.cell(col_width, 8, t_text)
-        pdf.cell(col_width, 8, s_text) # Removed boundary box here for cleaner look or could add 1
-        pdf.ln()
-    
-    pdf.ln(10)
-
-    # --- 3. Maintenance Recommendations ---
-    pdf.set_font("Arial", "B", 14)
-    pdf.cell(200, 10, " 3. STRATEGIC RECOMMENDATIONS", ln=True, fill=True)
-    pdf.ln(5)
-    pdf.set_font("Arial", "I", 11)
-    pdf.multi_cell(190, 8, rec)
-
-    pdf.ln(10)
-
-    # --- 4. Detailed Audit Entries ---
-    pdf.set_font("Arial", "B", 14)
-    pdf.cell(200, 10, " 4. DETAILED HAZARD AUDIT", ln=True, fill=True)
+    # Executive Summary Section
+    pdf.set_font("Arial", 'B', 14)
+    pdf.cell(200, 10, txt="1. EXECUTIVE SUMMARY", ln=True, align='L')
+    pdf.set_font("Arial", size=12)
+    pdf.cell(200, 10, txt=f"Current Integrity Index (RHI): {rhi:.1f}%", ln=True)
+    pdf.cell(200, 10, txt=f"Strategic Health Grade: {grade}", ln=True)
+    pdf.cell(200, 10, txt=f"Total Inspected Data Points: {total}", ln=True)
+    pdf.cell(200, 10, txt=f"Successfully Rectified Assets: {resolved}", ln=True)
     pdf.ln(5)
 
+    # Operational Risks
+    pdf.set_font("Arial", 'B', 14)
+    pdf.cell(200, 10, txt="2. ACTIVE OPERATIONAL RISKS", ln=True, align='L')
+    pdf.set_font("Arial", size=12)
+    pdf.cell(200, 10, txt=f"- Critical (High Severity): {h}", ln=True)
+    pdf.cell(200, 10, txt=f"- Serious (Medium Severity): {m}", ln=True)
+    pdf.cell(200, 10, txt=f"- Minor (Low Severity): {l}", ln=True)
+    pdf.ln(5)
+
+    # Procurement & Costs
+    pdf.set_font("Arial", 'B', 14)
+    pdf.cell(200, 10, txt="3. PROCUREMENT & FISCAL FORECAST", ln=True, align='L')
+    pdf.set_font("Arial", size=12)
+    mat_tons = (h*1.2) + (m*0.5) + (l*0.2)
+    est_cost = pending * 3500
+    pdf.cell(200, 10, txt=f"- Estimated Asphalt Mix Required: {mat_tons:.1f} Tons", ln=True)
+    pdf.cell(200, 10, txt=f"- Estimated Financial Liability: INR {est_cost:,}", ln=True)
+    pdf.cell(200, 10, txt=f"- Projected Labor Requirement: {pending * 4} Man-hours", ln=True)
+    pdf.ln(5)
+
+    # Strategic Priority Table
+    pdf.set_font("Arial", 'B', 14)
+    pdf.cell(200, 10, txt="4. TOP STRATEGIC PRIORITIES (ROI)", ln=True, align='L')
+    pdf.set_font("Arial", 'B', 10)
+    
     # Table Header
-    pdf.set_fill_color(230, 230, 230)
-    pdf.set_font("Arial", "B", 11)
-    pdf.cell(75, 10, "Classification", 1, 0, 'C', True)
-    pdf.cell(40, 10, "Confidence", 1, 0, 'C', True)
-    pdf.cell(40, 10, "Severity", 1, 0, 'C', True)
-    pdf.cell(35, 10, "Location", 1, 1, 'C', True)
+    pdf.cell(30, 10, 'Task ID', 1)
+    pdf.cell(50, 10, 'Damage Type', 1)
+    pdf.cell(50, 10, 'Location', 1)
+    pdf.cell(30, 10, 'Severity', 1)
+    pdf.cell(30, 10, 'ROI Score', 1)
+    pdf.ln()
 
     # Table Data
     pdf.set_font("Arial", size=9)
-    for _, row in df.iterrows():
-        # Truncate location label for table fit
-        loc = str(row['location_label'])[:15]
-        pdf.cell(75, 9, str(row['damage_type']), 1)
-        pdf.cell(40, 9, f"{row['confidence']:.2%}", 1, 0, 'R')
-        pdf.cell(40, 9, str(row['severity']).upper(), 1, 0, 'C')
-        pdf.cell(35, 9, loc, 1, 1, 'C')
+    if not active.empty:
+        cost_map = {'high': 8500, 'medium': 3500, 'low': 1500}
+        active['roi'] = (active['confidence'] * 100) / active['severity'].map(cost_map)
+        top_5 = active.sort_values(by='roi', ascending=False).head(8)
+        
+        for i, row in top_5.iterrows():
+            pdf.cell(30, 10, str(row['task_id']), 1)
+            pdf.cell(50, 10, str(row['damage_type']), 1)
+            pdf.cell(50, 10, str(row['location_label']), 1)
+            pdf.cell(30, 10, str(row['severity']).upper(), 1)
+            pdf.cell(30, 10, f"{row['roi']:.2f}", 1)
+            pdf.ln()
+    else:
+        pdf.cell(190, 10, 'No active maintenance requirements.', 1, ln=True, align='C')
 
-    # Save file
-    file_path = "road_report.pdf"
-    pdf.output(file_path)
+    pdf.ln(10)
+    pdf.set_font("Arial", 'I', 8)
+    pdf.cell(0, 10, "Internal Strategic Audit - Generated by SRIMS Autonomous Intelligence", 0, 1, 'C')
 
-    # Interactive Download Section
-    st.divider()
-    with open(file_path, "rb") as f:
-        st.download_button(
-            "⬇ Download Strategic Audit PDF",
-            f,
-            file_name=f"SRIMS_Audit_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
-            mime="application/pdf",
-            use_container_width=True
-        )
+    return bytes(pdf.output())
 
-    # Cleanup temporary local file
-    if os.path.exists(file_path):
-        os.remove(file_path)
+# --- UI ---
+st.markdown("<div class='report-card'>", unsafe_allow_html=True)
+st.header("📋 Official Strategic Audit (PDF)")
+st.write("Generate a formal infrastructure report for municipal submission.")
+
+pdf_bytes = create_pdf()
+
+st.download_button(
+    label="📩 Generate & Download Strategic PDF Audit",
+    data=pdf_bytes,
+    file_name=f"SRIMS_Audit_{datetime.now().strftime('%Y%m%d')}.pdf",
+    mime="application/pdf",
+    use_container_width=True
+)
+st.markdown("</div>", unsafe_allow_html=True)
+
+st.divider()
+st.subheader("📊 Master Operational Log")
+st.dataframe(df, use_container_width=True, hide_index=True)
