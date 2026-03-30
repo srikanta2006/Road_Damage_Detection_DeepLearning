@@ -11,3 +11,7 @@ pandas
 folium
 streamlit-folium
 timm
+piexif
+fpdf2
+streamlit-image-comparison
+plotly

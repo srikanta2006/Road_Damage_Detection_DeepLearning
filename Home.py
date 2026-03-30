@@ -1,125 +1,150 @@
 import streamlit as st
+import pandas as pd
+import time
+import os
+from utils.alerts import render_sidebar_alerts
 
 st.set_page_config(
-    page_title="Road Damage Detection using UAV and Deep Learning",
+    page_title="SRIMS | AI Road Infrastructure Management",
     page_icon="🚧",
     layout="wide"
 )
 
+render_sidebar_alerts()
+
+# Custom Glassmorphism CSS
 st.markdown("""
 <style>
-.main {
-    background-color: #0E1117;
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+
+html, body, [data-testid="stSidebar"] {
+    font-family: 'Inter', sans-serif;
 }
 
-h1, h2, h3 {
-    color: #FFFFFF;
+.main {
+    background: radial-gradient(circle at top right, #1a1c2c, #0E1117);
+}
+
+.glass-card {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border-radius: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 25px;
+    margin-bottom: 20px;
+    transition: all 0.3s ease;
+}
+
+.glass-card:hover {
+    transform: translateY(-5px);
+    border: 1px solid rgba(255, 75, 75, 0.4);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.stat-value {
+    font-size: 32px;
+    font-weight: 800;
+    color: #FF4B4B;
+}
+
+.stat-label {
+    font-size: 14px;
+    color: #aaa;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+}
+
+h1 {
+    font-weight: 800;
+    background: linear-gradient(90deg, #FF4B4B, #FF8F8F);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-align: center;
+    margin-bottom: 40px !important;
 }
 
 .stButton>button {
-    background-color: #FF4B4B;
+    background: linear-gradient(90deg, #FF4B4B, #FF2B2B);
     color: white;
+    border: none;
     border-radius: 10px;
-    height: 3em;
-    width: 100%;
-    font-size: 16px;
-}
-
-.metric-box {
-    background-color: #1E1E1E;
-    padding: 20px;
-    border-radius: 12px;
-    text-align: center;
-    color: white;
-    font-size: 18px;
-}
-
-.block-container {
-    padding-top: 2rem;
+    font-weight: 600;
+    padding: 12px 25px;
+    transition: all 0.3s ease;
 }
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<h1 style='text-align:center;'>🚧 Road Damage Detection System</h1>", unsafe_allow_html=True)
+st.markdown("<h1>🚧 Smart Road Infrastructure Management System (SRIMS)</h1>", unsafe_allow_html=True)
 
+# --- DYNAMIC DATA SYNC: REAL-TIME CSV TRACKING ---
+if os.path.exists("gps_log.csv"):
+    df = pd.read_csv("gps_log.csv")
+    active_det = len(df[df['status'] != 'Resolved'])
+    total_inspected = len(df)
+    system_status = "Online"
+else:
+    active_det = 0
+    total_inspected = 0
+    system_status = "Awaiting Logic"
 
-st.markdown("---")
-
+# Hero Section
 col1, col2, col3 = st.columns(3)
 
-col1.markdown("<div class='metric-box'>⚡ Fast Detection<br><b>Real-time</b></div>", unsafe_allow_html=True)
-col2.markdown("<div class='metric-box'>🎯 High Accuracy<br><b>YOLOv8 Model</b></div>", unsafe_allow_html=True)
-col3.markdown("<div class='metric-box'>📊 Multi Input<br><b>Image / Video / Webcam</b></div>", unsafe_allow_html=True)
+with col1:
+    st.markdown(f"""
+    <div class='glass-card'>
+        <div class='stat-label'>Total Infrastructure Audit</div>
+        <div class='stat-value'>{total_inspected} Points</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col2:
+    st.markdown(f"""
+    <div class='glass-card'>
+        <div class='stat-label'>Unresolved Hazards</div>
+        <div class='stat-value'>{active_det} Active</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col3:
+    color = "#4CAF50" if active_det == 0 and total_inspected > 0 else "#FFC107" if active_det > 0 else "#888"
+    st.markdown(f"""
+    <div class='glass-card'>
+        <div class='stat-label'>Operational Grid Status</div>
+        <div class='stat-value' style='color: {color};'>{system_status}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+st.divider()
+
+# Feature Showcase
+col_left, col_right = st.columns([1, 1.5])
+
+with col_left:
+    st.markdown("## 🔍 Intelligence Engine")
+    st.write("""
+    SRIMS uses deep learning (YOLOv8) to automate road surveys, identifying 
+    4 critical damage types with high confidence.
+    """)
+    
+    st.markdown("""
+    - **Live Stream Analysis** (Webcam/Drone Support)
+    - **Batch Processing** (Upload images or high-res videos)
+    - **Strategic Analytics** (Predictive RHI & Cost Mapping)
+    """)
+    
+    if st.button("🚀 Begin New Survey"):
+        st.info("Select a detection module from the sidebar to start a new mission.")
+
+with col_right:
+    st.markdown("### 📊 Live Operational Health")
+    health_score = 100 - (active_det * 2) if total_inspected > 0 else 100
+    health_score = max(50, min(100, health_score))
+    st.progress(health_score / 100, text=f"City Infrastructure Integrity: {health_score}%")
+    st.caption("Real-time synchronization with active field maintenance status.")
 
 st.markdown("---")
 
-st.markdown("## 📌 Project Overview")
-
-st.write("""
-This project presents an AI-based system for detecting road damages using UAV (drone) imagery and deep learning techniques.
-
-The system leverages the YOLOv8 model to identify and classify different types of road damages such as cracks and potholes from images, videos, and real-time inputs.
-""")
-
-st.markdown("---")
-
-st.markdown("## 🚀 Features")
-
-col1, col2 = st.columns(2)
-
-col1.markdown("""
-### 🔍 Detection
-- 📷 Image Detection  
-- 🎥 Video Detection  
-- 🎯 Real-time Detection  
-""")
-
-col2.markdown("""
-### ⚙️ System
-- ⚡ Fast YOLOv8 Inference  
-- 🧠 Deep Learning Model  
-- 📊 Interactive Dashboard  
-""")
-
-st.markdown("---")
-
-st.markdown("## 🛠️ Damage Types")
-
-col1, col2 = st.columns(2)
-
-col1.markdown("""
-- Longitudinal Crack  
-- Transverse Crack  
-""")
-
-col2.markdown("""
-- Alligator Crack  
-- Potholes  
-""")
-
-st.markdown("---")
-
-st.markdown("## 🧑‍💻 How It Works")
-
-st.markdown("""
-1️⃣ Select module from sidebar  
-2️⃣ Upload input (image/video/webcam)  
-3️⃣ AI detects road damage  
-4️⃣ View results with bounding boxes & metrics  
-""")
-
-st.markdown("---")
-
-st.markdown("## ⚙️ Tech Stack")
-
-st.markdown("""
-- 🐍 Python  
-- 🎨 Streamlit  
-- 🤖 YOLOv8 (Ultralytics)  
-- 📷 OpenCV  
-- 🔥 PyTorch  
-""")
-
-st.markdown("---")
-
-st.markdown("<p style='text-align:center; color:gray;'>Built using Deep Learning for Smart Infrastructure Monitoring</p>", unsafe_allow_html=True)
+# Footer
+st.markdown("<p style='text-align:center; color: #555;'>Ministry of Public Works | Smart Infrastructure Initiative</p>", unsafe_allow_html=True)
