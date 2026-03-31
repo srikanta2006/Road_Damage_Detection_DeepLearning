@@ -7,24 +7,22 @@ import csv
 import random
 from ultralytics import YOLO
 from sample_utils.download import download_file
-
 from utils.alerts import render_sidebar_alerts
+from utils.style import apply_custom_style, render_top_nav, render_modern_card
 
 st.set_page_config(
-    page_title="Video Detection",
-    page_icon="📷",
+    page_title="Video Analytics | SRIMS",
+    page_icon="🎥",
     layout="wide"
 )
 
-render_sidebar_alerts()
+# Apply global styling
+apply_custom_style()
 
-st.markdown("""
-<style>
-.main { background-color: #0E1117; }
-h1 { color: white; text-align: center; }
-.stButton>button { background-color: #FF4B4B; color: white; border-radius: 8px; }
-</style>
-""", unsafe_allow_html=True)
+# Top Navbar
+render_top_nav("Video")
+
+render_sidebar_alerts()
 
 import uuid
 
@@ -32,7 +30,6 @@ def log_detection(filename, lat, lon, label, damage_type, confidence, media_type
     severity = "high" if confidence >= 0.8 else "medium" if confidence >= 0.5 else "low"
     task_id = str(uuid.uuid4())[:8]
     row = [filename, lat, lon, label, damage_type, round(confidence, 2), severity, media_type, "Pending", task_id]
-    # No need to check for file existence since we reset it at the start of the button click
     with open("gps_log.csv", "a", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(row)
@@ -54,28 +51,35 @@ os.makedirs("./temp", exist_ok=True)
 input_path = "./temp/input.mp4"
 output_path = "./temp/output.mp4"
 
-st.title("🎥 Video Road Damage Detection")
+# Page Header
+st.markdown("""
+<div class="animate-in" style="margin-bottom: 30px;">
+    <h1><i class="fa-solid fa-video"></i> Strategic Video Analytics</h1>
+    <p style="color: #8892B0;">Deploy YOLOv8 computer vision for high-throughput mobile infrastructure audits.</p>
+</div>
+""", unsafe_allow_html=True)
 
 col_menu_1, col_menu_2 = st.columns([2, 1])
 
 with col_menu_1:
-    video = st.file_uploader("Upload Video", type="mp4")
-    conf = st.slider("Confidence Threshold", 0.0, 1.0, 0.3, 0.05)
+    st.markdown("### <i class='fa-solid fa-upload'></i> Source Media", unsafe_allow_html=True)
+    video = st.file_uploader("Upload Infrastructure Footage", type="mp4")
+    conf = st.slider("Neural Confidence Threshold", 0.0, 1.0, 0.3, 0.05)
 
 with col_menu_2:
-    st.subheader("📍 Location Settings")
-    lat_val = st.number_input("Latitude", value=17.3850, format="%.4f")
-    lon_val = st.number_input("Longitude", value=78.4867, format="%.4f")
-    location_label = st.text_input("Location Label", value="Hyderabad")
+    st.markdown("### <i class='fa-solid fa-location-dot'></i> Deployment Context", unsafe_allow_html=True)
+    lat_val = st.number_input("Latitudinal Origin", value=17.3850, format="%.4f")
+    lon_val = st.number_input("Longitudinal Origin", value=78.4867, format="%.4f")
+    location_label = st.text_input("Operational Sector", value="Hyderabad Hub")
 
-st.divider()
+st.markdown("<br>", unsafe_allow_html=True)
 
-if video and st.button("🚀 Process Video"):
+if video and st.button("🚀 INITIATE NEURAL PROCESSING"):
 
     with open(input_path, "wb") as f:
         f.write(video.getbuffer())
 
-    # ✅ RESET LOG FOR NEW VIDEO RUN
+    # RESET LOG
     header = ["filename","lat","lon","location_label","damage_type","confidence","severity","media_type","status","task_id"]
     with open("gps_log.csv", "w", newline="") as f:
         writer = csv.writer(f)
@@ -96,20 +100,28 @@ if video and st.button("🚀 Process Video"):
 
     rhi = 100
     cost = 0
-    progress = st.progress(0)
-
-    col1, col2 = st.columns(2)
-    rhi_box = col1.empty()
-    cost_box = col2.empty()
+    
+    # Progress Section
+    progress_container = st.empty()
+    col_v1, col_v2 = st.columns([2, 1])
+    
+    with col_v1:
+        video_placeholder = st.empty()
+    
+    with col_v2:
+        st.markdown("### <i class='fa-solid fa-gauge-high'></i> Telemetry", unsafe_allow_html=True)
+        rhi_box = st.empty()
+        cost_box = st.empty()
+        hazard_log = st.empty()
 
     frame_count = 0
+    hazards_found = []
 
     while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
             break
 
-        # Process every 15th frame for performance and better sampling
         if frame_count % 15 == 0:
             resized = cv2.resize(frame, (640, 640))
             results = net.predict(resized, conf=conf, verbose=False)
@@ -130,47 +142,44 @@ if video and st.button("🚀 Process Video"):
                         elif area < 15: c, impact = 1500, 4
                         else: c, impact = 3000, 6
 
-                    cost += c * 0.5 # Adjustment for sampling
+                    cost += c * 0.5 
                     rhi -= impact
                     
-                    # ✅ LOCALIZED MAPPING JITTER (±10 meters)
-                    # Add jitter so markers don't stack but stay very close (same street/intersection).
                     jitter_lat = lat_val + random.uniform(-0.0001, 0.0001)
                     jitter_lon = lon_val + random.uniform(-0.0001, 0.0001)
 
-                    # Log to CSV
-                    log_detection(
-                        video.name, 
-                        jitter_lat, jitter_lon, 
-                        location_label, 
-                        CLASSES[cls], 
-                        conf_score, 
-                        "video"
-                    )
+                    log_detection(video.name, jitter_lat, jitter_lon, location_label, CLASSES[cls], conf_score, "video")
+                    hazards_found.append(f"{CLASSES[cls]} ({int(conf_score*100)}%)")
 
             rhi = max(rhi, 0)
             annotated = results[0].plot()
             annotated = cv2.resize(annotated, (width, height))
             out.write(annotated)
             
-            rhi_box.metric("Road Health Index", int(rhi))
-            cost_box.metric("Repair Cost", f"₹{int(cost)}")
-        else:
-            pass
+            # Update metrics in Navy/Cyan style
+            rhi_box.metric("Road Health index", int(rhi))
+            cost_box.metric("Estimated Liability", f"₹{int(cost)}")
+            
+            # Display live feed
+            video_placeholder.image(cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB), use_container_width=True)
+            
+            if hazards_found:
+                hazard_log.code("\n".join(hazards_found[-5:]), language="text")
 
         frame_count += 1
-        progress.progress(min(frame_count / total, 1.0))
+        progress_container.progress(min(frame_count / total, 1.0))
 
     cap.release()
     out.release()
 
-    st.success("Processing Completed")
+    st.success("✅ MISSION COMPLETE: Data Ingested")
 
     if os.path.exists(output_path):
-        st.subheader("Processed Video")
+        st.divider()
+        st.subheader("<i class='fa-solid fa-clapperboard'></i> Full Processed Audit", unsafe_allow_html=True)
         with open(output_path, "rb") as f:
             video_bytes = f.read()
         st.video(video_bytes)
-        st.download_button("Download Processed Video", video_bytes, file_name="output.mp4")
+        st.download_button("💾 DOWNLOAD ARCHIVE", video_bytes, file_name="srims_audit.mp4")
     
-    st.toast("✅ Video analytics synced with dashboard!")
+    st.toast("✅ Video analytics synced with central dashboard!")

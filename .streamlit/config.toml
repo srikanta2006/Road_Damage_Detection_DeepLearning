@@ -1,9 +1,12 @@
-[server]
-# Max size, in megabytes, for files uploaded with the file_uploader.
-# Default: 200
-maxUploadSize = 1000
-
 [theme]
-# The preset Streamlit theme that your custom theme inherits from.
-# One of "light" or "dark".
+primaryColor = "#3B82F6"
+backgroundColor = "#F8FAFC"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#1E293B"
+font = "sans serif"
 base = "light"
+
+[server]
+headless = true
+enableCORS = false
+enableXsrfProtection = false

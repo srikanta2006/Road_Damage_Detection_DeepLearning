@@ -5,42 +5,32 @@ import plotly.graph_objects as go
 import numpy as np
 import os
 from utils.alerts import render_sidebar_alerts
+from utils.style import apply_custom_style, render_modern_card, render_top_nav
 
-st.set_page_config(page_title="Strategic Infrastructure Pro", page_icon="🏢", layout="wide")
+st.set_page_config(page_title="Strategic Analytics | SRIMS", page_icon="📊", layout="wide")
 
+# Apply global styling
+apply_custom_style()
+
+# Top Navbar
+render_top_nav("Analytics")
+
+# Sidebar
 render_sidebar_alerts()
 
-# PREMIUM THEME
+# Page Header
 st.markdown("""
-<style>
-.main { background: radial-gradient(circle at top left, #0D1117, #161B22); }
-.briefing-box {
-    background: rgba(46, 204, 113, 0.05);
-    border-left: 5px solid #2ECC71;
-    padding: 20px;
-    border-radius: 5px;
-    margin-bottom: 25px;
-}
-.metric-card {
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    padding: 15px;
-    text-align: center;
-}
-.stat-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
-.stat-value { font-size: 18px; font-weight: bold; color: white; }
-</style>
+<div class="animate-in" style="margin-bottom: 30px;">
+    <h1><i class="fa-solid fa-chart-pie" style="color: var(--primary-blue);"></i> Strategic Infrastructure Analytics</h1>
+    <p style="color: var(--text-slate-600);">Executive briefing and fiscal ROI modeling for municipal infrastructure maintenance.</p>
+</div>
 """, unsafe_allow_html=True)
 
-st.title("🏙️ Strategic Infrastructure & Budget Optimization")
-
-# Load Data
-if os.path.exists("gps_log.csv"):
-    df = pd.read_csv("gps_log.csv")
-else:
-    st.warning("Database unavailable.")
+if not os.path.exists("gps_log.csv"):
+    st.warning("No geospatial log data found. Please run a detection mission first.")
     st.stop()
+
+df = pd.read_csv("gps_log.csv")
 
 # --- DATA PRE-PROCESSING ---
 active_df = df[df['status'] != 'Resolved'].copy()
@@ -55,83 +45,96 @@ l = len(active_df[active_df['severity'] == 'low'])
 rhi = 100 - ( (h*20) + (m*8) + (l*2) ) / (total_dets if total_dets > 0 else 1) * 2
 rhi = max(0, min(100, rhi))
 
-# --- FEATURE 1: 🤖 AI EXECUTIVE BRIEFING ---
-st.markdown("### 🤖 Autonomous Executive Briefing")
-grade = "A" if rhi > 85 else "B" if rhi > 70 else "C" if rhi > 55 else "D" if rhi > 40 else "F"
+# Analytics Hero Section
+col1, col2, col3 = st.columns(3)
+with col1:
+    render_modern_card("Integrity Index (RHI)", f"{rhi:.1f}%", "fa-heart-pulse")
+with col2:
+    render_modern_card("Active Hazards", f"{pending_dets}", "fa-burst")
+with col3:
+    grade = "A" if rhi > 85 else "B" if rhi > 70 else "C" if rhi > 55 else "D" if rhi > 40 else "F"
+    render_modern_card("Infrastructure Grade", grade, "fa-medal")
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# Executive Briefing
+st.markdown("### <i class='fa-solid fa-robot' style='color: var(--primary-blue);'></i> AI Executive Briefing", unsafe_allow_html=True)
 danger_zone = active_df.groupby('location_label').size().idxmax() if not active_df.empty else "None"
 
-briefing_text = f"""
-Current City infrastructure is operating at a **Grade {grade}** level with a structural integrity index of **{rhi:.1f}%**. 
-
-- 🚩 **{h} critical fractures** requiring immediate field mobilization. 
-- 📍 Analysis indicates that **{danger_zone}** remains the primary hazard cluster. 
-- 🚀 **Strategic recommendation**: Prioritize high-confidence pothole rectification in high-density sectors to stabilize the degradation curve.
+briefing_html = f"""
+<div class="modern-card animate-in" style="border-left: 4px solid var(--primary-blue); background: #F0F9FF;">
+    <p style="margin: 0; line-height: 1.6; color: var(--text-slate-900);">
+        Current City infrastructure is operating at a <strong>Grade {grade}</strong> level. 
+        Analysis indicates <strong>{h} critical fractures</strong> requiring immediate mobilization 
+        within the <strong>{danger_zone}</strong> sector.
+    </p>
+    <p style="margin-top: 15px; font-size: 0.9rem; color: var(--text-slate-600);">
+        <i class="fa-solid fa-circle-info"></i> Strategic Priority: High-confidence pothole rectification in high-density corridors.
+    </p>
+</div>
 """
-st.info(briefing_text)
+st.markdown(briefing_html, unsafe_allow_html=True)
 
-# --- FEATURE 2: 💰 BUDGET ROI OPTIMIZER ---
-st.divider()
-st.markdown("### 💰 Strategic Budget Optimizer (ROI)")
-c1, c2 = st.columns([1, 2])
+# Budget ROI Optimizer
+st.markdown("### <i class='fa-solid fa-kaaba' style='color: var(--primary-blue);'></i> Budget ROI Optimizer", unsafe_allow_html=True)
+with st.container():
+    budget = st.slider("Fiscal Allocation (₹)", 10000, 500000, 150000, step=5000)
 
-with c1:
-    st.write("Input your available maintenance budget to identify the most impactful repairs.")
-    budget = st.number_input("Available Budget (₹)", min_value=0, value=50000, step=5000)
-    
-    # Logic: ROI = Severity Weight / Cost
-    # Simulated costs: High=8000, Medium=4000, Low=1500
-    cost_map = {'high': 8500, 'medium': 3500, 'low': 1200}
-    weight_map = {'high': 100, 'medium': 40, 'low': 10}
-    
-    active_df['est_cost'] = active_df['severity'].map(cost_map)
-    active_df['impact_val'] = active_df['severity'].map(weight_map) * active_df['confidence']
-    active_df['roi'] = active_df['impact_val'] / active_df['est_cost']
-    
-    plan_df = active_df.sort_values(by='roi', ascending=False)
-    
-    selected_tasks = []
+    # Cost Model
+    active_df['repair_cost'] = active_df['severity'].map({'high': 8000, 'medium': 3500, 'low': 1500})
+    active_df['rhi_impact'] = active_df['severity'].map({'high': 2.5, 'medium': 1.2, 'low': 0.4})
+    active_df['roi_factor'] = active_df['rhi_impact'] / (active_df['repair_cost'] / 1000)
+
+    priority_repairs = active_df.sort_values(by=['roi_factor', 'confidence'], ascending=False)
+    selected = []
     spent = 0
-    for idx, row in plan_df.iterrows():
-        if spent + row['est_cost'] <= budget:
-            selected_tasks.append(row)
-            spent += row['est_cost']
-    
-    st.metric("Potential RHI Boost", f"+{(len(selected_tasks)*1.5):.1f}%", delta=f"{len(selected_tasks)} Tasks Covered")
-    st.info(f"Total Allocated: ₹{spent:,} / ₹{budget:,}")
+    rhi_gain = 0
 
-with c2:
-    if selected_tasks:
-        st.write("**Top Priority Action Items:**")
-        rec_df = pd.DataFrame(selected_tasks)[['task_id', 'damage_type', 'location_label', 'severity', 'est_cost']]
-        st.dataframe(rec_df, use_container_width=True, hide_index=True)
-    else:
-        st.success("Current budget is sufficient for all minor maintenance, or no pending hazards exist.")
+    for _, row in priority_repairs.iterrows():
+        if spent + row['repair_cost'] <= budget:
+            selected.append(row)
+            spent += row['repair_cost']
+            rhi_gain += row['rhi_impact']
 
-# --- FEATURE 3: ⛈️ WEATHER-RISK ADVISORY ---
-st.divider()
-st.markdown("### ⛈️ Environmental Risk Projection")
-storm_mode = st.toggle("Simulate 7-Day Monsoon Impact", help="Projects hazard degradation during heavy rainfall.")
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Optimized Tasks", len(selected), help="Number of repairs within budget")
+    c2.metric("Allocated Fund", f"₹{spent:,}")
+    c3.metric("Projected Gain", f"+{rhi_gain:.1f}%", delta_color="normal")
 
-if storm_mode:
-    st.error("🚨 **High Risk Advisory**: 45% of 'Medium' hazards are projected to escalate to 'Critical' status within 72 hours of rain exposure.")
-    # Show projection
-    proj_h = h + int(m * 0.45)
-    st.warning(f"Projected Critical Count: {proj_h} (Current: {h})")
-    fig_storm = go.Figure(go.Indicator(
-        mode = "gauge+number", value = rhi - 15,
-        title = {'text': "Projected RHI (Post-Storm)", 'font': {'size': 13}},
-        gauge = {'axis': {'range': [0, 100]}, 'bar': {'color': "#E74C3C"}}
-    ))
-    fig_storm.update_layout(paper_bgcolor='rgba(0,0,0,0)', font={'color': "white"}, height=200)
-    st.plotly_chart(fig_storm, use_container_width=True)
-else:
-    st.info("Operating in Dry Weather parameters. No immediate environmental degradation detected.")
+# Monsoon Degradation Forecast
+st.markdown("### <i class='fa-solid fa-cloud-showers-heavy' style='color: var(--primary-blue);'></i> Environment Stress Simulation", unsafe_allow_html=True)
+monsoon_intensity = st.select_slider("Simulated Monsoon Severity", options=["Stable", "Light", "Heavy", "Extreme"])
+decay_rate = {"Stable": 0.0, "Light": 0.05, "Heavy": 0.15, "Extreme": 0.35}
 
-# --- FOOTER ---
-st.divider()
-st.subheader("🌋 Live Structural Stress Map")
-df['magnitude'] = df['confidence'] * df['severity'].map({'high': 6, 'medium': 3, 'low': 1})
-fig_3d = px.scatter_3d(df, x='lat', y='lon', z='magnitude', color='severity', size='confidence',
-                       color_discrete_map={'high': '#E74C3C', 'medium': '#F39C12', 'low': '#2ECC71'})
-fig_3d.update_layout(scene=dict(bgcolor='rgba(0,0,0,0)'), paper_bgcolor='rgba(0,0,0,0)', font={'color': "white"}, height=500, margin=dict(l=0,r=0,b=0,t=0))
-st.plotly_chart(fig_3d, use_container_width=True)
+future_rhi = rhi * (1 - decay_rate[monsoon_intensity])
+if decay_rate[monsoon_intensity] > 0:
+    st.markdown(f"""
+    <div class="modern-card" style="border: 1px solid #FCA5A5; background: #FEF2F2;">
+        <i class="fa-solid fa-triangle-exclamation" style="color: #EF4444;"></i> 
+        Simulated {monsoon_intensity} monsoons will degrade Integrity Index to <strong style="color: #EF4444;">{future_rhi:.1f}%</strong> 
+        if pending hazards remain unresolved.
+    </div>
+    """, unsafe_allow_html=True)
+
+# Visualizations
+st.markdown("<br>", unsafe_allow_html=True)
+st.markdown("### <i class='fa-solid fa-chart-line' style='color: var(--primary-blue);'></i> Spatial & Severity Distribution", unsafe_allow_html=True)
+
+col1, col2 = st.columns(2)
+
+with col1:
+    fig_sev = px.pie(active_df, names='severity', color='severity', 
+                    color_discrete_map={'high':'#EF4444', 'medium':'#3B82F6', 'low':'#10B981'},
+                    template="plotly_white",
+                    title="Active Hazard Severity Split")
+    fig_sev.update_layout(margin=dict(t=40, b=40, l=40, r=40))
+    st.plotly_chart(fig_sev, use_container_width=True)
+
+with col2:
+    loc_counts = active_df.groupby('location_label').size().reset_index(name='count')
+    fig_loc = px.bar(loc_counts, x='location_label', y='count', 
+                    template="plotly_white",
+                    title="Hazard density by sector", 
+                    color='count', color_continuous_scale="Blues")
+    fig_loc.update_layout(margin=dict(t=40, b=40, l=40, r=40))
+    st.plotly_chart(fig_loc, use_container_width=True)

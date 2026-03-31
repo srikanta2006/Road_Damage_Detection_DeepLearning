@@ -4,31 +4,31 @@ import os
 from datetime import datetime
 from fpdf import FPDF
 from utils.alerts import render_sidebar_alerts
+from utils.style import apply_custom_style, render_modern_card, render_top_nav
 
-st.set_page_config(page_title="Strategic Audit Report", page_icon="📄", layout="wide")
+st.set_page_config(page_title="Strategic Audit | SRIMS", page_icon="📄", layout="wide")
+
+# Apply global styling
+apply_custom_style()
+
+# Top Navbar
+render_top_nav("Report")
 
 render_sidebar_alerts()
 
-# PREMIUM THEME
+# Page Header
 st.markdown("""
-<style>
-.main { background: #0E1117; color: white; }
-.report-card {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    padding: 30px;
-    border-radius: 12px;
-}
-</style>
+<div class="animate-in" style="margin-bottom: 30px;">
+    <h1><i class="fa-solid fa-file-invoice" style="color: var(--primary-blue);"></i> Strategic Infrastructure Audit</h1>
+    <p style="color: var(--text-slate-600);">Formatted reporting and official documentation for municipal planning and procurement.</p>
+</div>
 """, unsafe_allow_html=True)
-
-st.title("📄 Strategic Infrastructure Audit")
 
 # Load Data
 if os.path.exists("gps_log.csv"):
     df = pd.read_csv("gps_log.csv")
 else:
-    st.warning("Database unavailable.")
+    st.warning("Spatial database unavailable. Please run a detection mission first.")
     st.stop()
 
 # --- CALCULATE STATISTICS ---
@@ -131,21 +131,39 @@ def create_pdf():
     return bytes(pdf.output())
 
 # --- UI ---
-st.markdown("<div class='report-card'>", unsafe_allow_html=True)
-st.header("📋 Official Strategic Audit (PDF)")
-st.write("Generate a formal infrastructure report for municipal submission.")
+st.markdown("### <i class='fa-solid fa-file-pdf' style='color: var(--primary-blue);'></i> Document Generation", unsafe_allow_html=True)
+st.markdown("""
+<div class="modern-card animate-in" style="background: #F8FAFC;">
+    <p style="color: var(--text-slate-600); font-size: 1.1rem; margin-bottom: 20px;">
+        Compile official municipal infrastructure reports including structural grades, 
+        fiscal liabilities, and priority work schedules.
+    </p>
+</div>
+""", unsafe_allow_html=True)
 
 pdf_bytes = create_pdf()
 
+st.markdown('<div class="action-btn">', unsafe_allow_html=True)
 st.download_button(
-    label="📩 Generate & Download Strategic PDF Audit",
+    label="📩 GENERATE & DOWNLOAD PDF AUDIT",
     data=pdf_bytes,
     file_name=f"SRIMS_Audit_{datetime.now().strftime('%Y%m%d')}.pdf",
     mime="application/pdf",
     use_container_width=True
 )
-st.markdown("</div>", unsafe_allow_html=True)
+st.markdown('</div>', unsafe_allow_html=True)
 
+st.markdown("<br>", unsafe_allow_html=True)
 st.divider()
-st.subheader("📊 Master Operational Log")
-st.dataframe(df, use_container_width=True, hide_index=True)
+
+st.markdown("### <i class='fa-solid fa-database' style='color: var(--primary-blue);'></i> Master Operational Log", unsafe_allow_html=True)
+st.dataframe(
+    df, 
+    use_container_width=True, 
+    hide_index=True,
+    column_config={
+        "confidence": st.column_config.ProgressColumn("Accuracy", min_value=0, max_value=1),
+        "lat": st.column_config.NumberColumn("Latitude", format="%.4f"),
+        "lon": st.column_config.NumberColumn("Longitude", format="%.4f")
+    }
+)
